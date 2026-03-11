@@ -1,0 +1,2028 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": 20,
+  "links": [],
+  "liveNow": true,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 210,
+      "panels": [],
+      "title": "Measurements per Node (Analysis: Current/Avg/Max/Min)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": 0
+              },
+              {
+                "color": "super-light-blue",
+                "value": 14
+              },
+              {
+                "color": "green",
+                "value": 20
+              },
+              {
+                "color": "yellow",
+                "value": 26
+              },
+              {
+                "color": "orange",
+                "value": 30
+              },
+              {
+                "color": "red",
+                "value": 35
+              }
+            ]
+          },
+          "unit": "celsius"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 0,
+        "y": 1
+      },
+      "id": 104,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "rangeDuration = uint(v: v.timeRangeStop) - uint(v: v.timeRangeStart)\r\nrangeHours = float(v: rangeDuration) / 1000000000.0 / 3600.0\r\nsBucket = if rangeHours > 168.0 then \"eap_plh40_1d\" else if rangeHours > 48.0 then \"eap_plh40_1h\" else \"eap_plh40\"\r\nbase = from(bucket: sBucket) |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"temp\") |> group(columns: [\"id\"])\r\nmi = base |> min() |> map(fn: (r) => ({ r with _field: \"Min\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nma = base |> max() |> map(fn: (r) => ({ r with _field: \"Max\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nav = base |> mean() |> map(fn: (r) => ({ r with _field: \"Avg\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\ncu = base |> last() |> map(fn: (r) => ({ r with _field: \"Now\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nunion(tables: [cu, av, ma, mi]) |> group()",
+          "refId": "A"
+        }
+      ],
+      "title": "Temperature Analysis",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 20
+              },
+              {
+                "color": "green",
+                "value": 30
+              },
+              {
+                "color": "yellow",
+                "value": 60
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 3,
+        "y": 1
+      },
+      "id": 105,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "rangeDuration = uint(v: v.timeRangeStop) - uint(v: v.timeRangeStart)\r\nrangeHours = float(v: rangeDuration) / 1000000000.0 / 3600.0\r\nsBucket = if rangeHours > 168.0 then \"eap_plh40_1d\" else if rangeHours > 48.0 then \"eap_plh40_1h\" else \"eap_plh40\"\r\nbase = from(bucket: sBucket) |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"hum\") |> group(columns: [\"id\"])\r\nmi = base |> min() |> map(fn: (r) => ({ r with _field: \"Min\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nma = base |> max() |> map(fn: (r) => ({ r with _field: \"Max\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nav = base |> mean() |> map(fn: (r) => ({ r with _field: \"Avg\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\ncu = base |> last() |> map(fn: (r) => ({ r with _field: \"Now\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nunion(tables: [cu, av, ma, mi]) |> group()",
+          "refId": "A"
+        }
+      ],
+      "title": "Humidity Analysis",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 80
+              },
+              {
+                "color": "orange",
+                "value": 85
+              },
+              {
+                "color": "red",
+                "value": 87
+              }
+            ]
+          },
+          "unit": "dB"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 6,
+        "y": 1
+      },
+      "id": 106,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "rangeDuration = uint(v: v.timeRangeStop) - uint(v: v.timeRangeStart)\r\nrangeHours = float(v: rangeDuration) / 1000000000.0 / 3600.0\r\nsBucket = if rangeHours > 168.0 then \"eap_plh40_1d\" else if rangeHours > 48.0 then \"eap_plh40_1h\" else \"eap_plh40\"\r\nbase = from(bucket: sBucket) |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"db\") |> group(columns: [\"id\"])\r\nmi = base |> min() |> map(fn: (r) => ({ r with _field: \"Min\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nma = base |> max() |> map(fn: (r) => ({ r with _field: \"Max\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nav = base |> mean() |> map(fn: (r) => ({ r with _field: \"Avg\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\ncu = base |> last() |> map(fn: (r) => ({ r with _field: \"Now\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nunion(tables: [cu, av, ma, mi]) |> group()",
+          "refId": "A"
+        }
+      ],
+      "title": "Noise Analysis (dB)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "dark-red",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 20
+              },
+              {
+                "color": "green",
+                "value": 50
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 9,
+        "y": 1
+      },
+      "id": 212,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "import \"math\" // Εισαγωγή βιβλιοθήκης για στρογγυλοποίηση\r\n\r\nfrom(bucket: \"eap_plh40\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"air_quality\")\r\n  |> filter(fn: (r) => r[\"id\"] == \"${NodeID}\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"v\")\r\n  |> last()\r\n  |> map(fn: (r) => {\r\n      // 1. Υπολογισμός Ποσοστού\r\n      pct = if r._value >= 4.1 then 100.0\r\n            else if r._value <= 3.0 then 0.0\r\n            else (r._value - 3.0) / 1.1 * 100.0\r\n\r\n      // 2. Στρογγυλοποίηση Volt σε 2 δεκαδικά (π.χ. 3.45)\r\n      volts = math.round(x: r._value * 100.0) / 100.0\r\n\r\n      // 3. Επιστροφή: Τιμή = Ποσοστό, Όνομα = \"3.45 V\"\r\n      return {\r\n          _time: r._time,\r\n          _value: pct,\r\n          _field: string(v: volts) + \" V\"\r\n      }\r\n  })",
+          "refId": "A"
+        }
+      ],
+      "title": "Battery",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "fieldMinMax": false,
+          "mappings": [],
+          "max": -30,
+          "min": -140,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": -120
+              },
+              {
+                "color": "yellow",
+                "value": -105
+              },
+              {
+                "color": "green",
+                "value": -85
+              }
+            ]
+          },
+          "unit": "dBm"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 12,
+        "y": 1
+      },
+      "id": 213,
+      "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "from(bucket: \"eap_plh40\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"air_quality\")\r\n  |> filter(fn: (r) => r[\"id\"] == \"${NodeID}\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"rssi\")\r\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\r\n  |> yield(name: \"mean\")",
+          "refId": "A"
+        }
+      ],
+      "title": "RSSI",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed"
+          },
+          "fieldMinMax": false,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "total_lost"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Lost Packages"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "thresholds"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 5
+                    },
+                    {
+                      "color": "orange",
+                      "value": 15
+                    },
+                    {
+                      "color": "red",
+                      "value": 50
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "loss_perc"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "% Lost"
+              },
+              {
+                "id": "color"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 5
+                    },
+                    {
+                      "color": "#EAB839",
+                      "value": 10
+                    },
+                    {
+                      "color": "red",
+                      "value": 15
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "latest_seq"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Total Packages"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 15,
+        "y": 1
+      },
+      "id": 214,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "from(bucket: \"eap_plh40\")\r\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\r\n  |> filter(fn: (r) => r[\"_measurement\"] == \"air_quality\")\r\n  |> filter(fn: (r) => r[\"id\"] == \"${NodeID}\")\r\n  |> filter(fn: (r) => r[\"_field\"] == \"pkt\")\r\n  // ΣΗΜΑΝΤΙΚΟ: Μετατροπή σε ακέραιο (int) για αποφυγή προβλημάτων τύπου\r\n  |> map(fn: (r) => ({ r with _value: int(v: r._value) }))\r\n  |> group(columns: [\"topic\"]) \r\n  \r\n  // Υπολογίζουμε min, max, count σε ένα πέρασμα\r\n  |> reduce(\r\n      identity: {count: 0, min: 0, max: 0, first: true},\r\n      fn: (r, accumulator) => ({\r\n        count: accumulator.count + 1,\r\n        min: if accumulator.first then r._value else (if r._value < accumulator.min then r._value else accumulator.min),\r\n        max: if accumulator.first then r._value else (if r._value > accumulator.max then r._value else accumulator.max),\r\n        first: false\r\n      })\r\n  )\r\n  \r\n  // Κάνουμε τα μαθηματικά: Expected - Actual = Lost\r\n  |> map(fn: (r) => {\r\n      expected = r.max - r.min + 1\r\n      lost = expected - r.count\r\n      return {\r\n        node: r.topic, \r\n        latest_seq: r.max, \r\n        total_lost: lost,\r\n        // Υπολογισμός ποσοστού: (Lost / Expected) * 100\r\n        loss_perc: if expected > 0 then (float(v: lost) / float(v: expected)) * 100.0 else 0.0\r\n      }\r\n  })\r\n  \r\n  |> drop(columns: [\"min\", \"max\", \"count\", \"first\"])",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Packages / Lost",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 10
+              },
+              {
+                "color": "orange",
+                "value": 25
+              },
+              {
+                "color": "red",
+                "value": 50
+              }
+            ]
+          },
+          "unit": "conμgm3"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 0,
+        "y": 8
+      },
+      "id": 101,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "rangeDuration = uint(v: v.timeRangeStop) - uint(v: v.timeRangeStart)\r\nrangeHours = float(v: rangeDuration) / 1000000000.0 / 3600.0\r\nsBucket = if rangeHours > 168.0 then \"eap_plh40_1d\" else if rangeHours > 48.0 then \"eap_plh40_1h\" else \"eap_plh40\"\r\nbase = from(bucket: sBucket) |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"pm1\") |> group(columns: [\"id\"])\r\nmi = base |> min() |> map(fn: (r) => ({ r with _field: \"Min\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nma = base |> max() |> map(fn: (r) => ({ r with _field: \"Max\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nav = base |> mean() |> map(fn: (r) => ({ r with _field: \"Avg\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\ncu = base |> last() |> map(fn: (r) => ({ r with _field: \"Now\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nunion(tables: [cu, av, ma, mi]) |> group()",
+          "refId": "A"
+        }
+      ],
+      "title": "PM 1.0 Analysis",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 15
+              },
+              {
+                "color": "orange",
+                "value": 25
+              },
+              {
+                "color": "red",
+                "value": 35
+              }
+            ]
+          },
+          "unit": "conμgm3"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 3,
+        "y": 8
+      },
+      "id": 102,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "rangeDuration = uint(v: v.timeRangeStop) - uint(v: v.timeRangeStart)\r\nrangeHours = float(v: rangeDuration) / 1000000000.0 / 3600.0\r\nsBucket = if rangeHours > 168.0 then \"eap_plh40_1d\" else if rangeHours > 48.0 then \"eap_plh40_1h\" else \"eap_plh40\"\r\nbase = from(bucket: sBucket) |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"pm25\") |> group(columns: [\"id\"])\r\nmi = base |> min() |> map(fn: (r) => ({ r with _field: \"Min\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nma = base |> max() |> map(fn: (r) => ({ r with _field: \"Max\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nav = base |> mean() |> map(fn: (r) => ({ r with _field: \"Avg\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\ncu = base |> last() |> map(fn: (r) => ({ r with _field: \"Now\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nunion(tables: [cu, av, ma, mi]) |> group()",
+          "refId": "A"
+        }
+      ],
+      "title": "PM 2.5 Analysis",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 45
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "conμgm3"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 6,
+        "y": 8
+      },
+      "id": 103,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "rangeDuration = uint(v: v.timeRangeStop) - uint(v: v.timeRangeStart)\r\nrangeHours = float(v: rangeDuration) / 1000000000.0 / 3600.0\r\nsBucket = if rangeHours > 168.0 then \"eap_plh40_1d\" else if rangeHours > 48.0 then \"eap_plh40_1h\" else \"eap_plh40\"\r\nbase = from(bucket: sBucket) |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"pm10\") |> group(columns: [\"id\"])\r\nmi = base |> min() |> map(fn: (r) => ({ r with _field: \"Min\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nma = base |> max() |> map(fn: (r) => ({ r with _field: \"Max\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nav = base |> mean() |> map(fn: (r) => ({ r with _field: \"Avg\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\ncu = base |> last() |> map(fn: (r) => ({ r with _field: \"Now\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nunion(tables: [cu, av, ma, mi]) |> group()",
+          "refId": "A"
+        }
+      ],
+      "title": "PM 10 Analysis",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "yellow",
+                "value": 100
+              },
+              {
+                "color": "green",
+                "value": 200
+              }
+            ]
+          },
+          "unit": "kohm"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 9,
+        "y": 8
+      },
+      "id": 108,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "rangeDuration = uint(v: v.timeRangeStop) - uint(v: v.timeRangeStart)\r\nrangeHours = float(v: rangeDuration) / 1000000000.0 / 3600.0\r\nsBucket = if rangeHours > 168.0 then \"eap_plh40_1d\" else if rangeHours > 48.0 then \"eap_plh40_1h\" else \"eap_plh40\"\r\nbase = from(bucket: sBucket) |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"tvoc\") |> group(columns: [\"id\"])\r\nmi = base |> min() |> map(fn: (r) => ({ r with _field: \"Min\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nma = base |> max() |> map(fn: (r) => ({ r with _field: \"Max\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nav = base |> mean() |> map(fn: (r) => ({ r with _field: \"Avg\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\ncu = base |> last() |> map(fn: (r) => ({ r with _field: \"Now\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nunion(tables: [cu, av, ma, mi]) |> group()",
+          "refId": "A"
+        }
+      ],
+      "title": "VOC Analysis",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 600
+              },
+              {
+                "color": "orange",
+                "value": 1000
+              },
+              {
+                "color": "red",
+                "value": 5000
+              }
+            ]
+          },
+          "unit": "ppm"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 12,
+        "y": 8
+      },
+      "id": 107,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "rangeDuration = uint(v: v.timeRangeStop) - uint(v: v.timeRangeStart)\r\nrangeHours = float(v: rangeDuration) / 1000000000.0 / 3600.0\r\nsBucket = if rangeHours > 168.0 then \"eap_plh40_1d\" else if rangeHours > 48.0 then \"eap_plh40_1h\" else \"eap_plh40\"\r\nbase = from(bucket: sBucket) |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"co2\") |> group(columns: [\"id\"])\r\nmi = base |> min() |> map(fn: (r) => ({ r with _field: \"Min\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nma = base |> max() |> map(fn: (r) => ({ r with _field: \"Max\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nav = base |> mean() |> map(fn: (r) => ({ r with _field: \"Avg\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\ncu = base |> last() |> map(fn: (r) => ({ r with _field: \"Now\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nunion(tables: [cu, av, ma, mi]) |> group()",
+          "refId": "A"
+        }
+      ],
+      "title": "CO2 Analysis",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 51
+              },
+              {
+                "color": "orange",
+                "value": 101
+              },
+              {
+                "color": "red",
+                "value": 151
+              },
+              {
+                "color": "dark-red",
+                "value": 201
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 3,
+        "x": 15,
+        "y": 8
+      },
+      "id": 109,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": true
+        },
+        "showPercentChange": false,
+        "textMode": "value_and_name",
+        "wideLayout": false
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "rangeDuration = uint(v: v.timeRangeStop) - uint(v: v.timeRangeStart)\r\nrangeHours = float(v: rangeDuration) / 1000000000.0 / 3600.0\r\nsBucket = if rangeHours > 168.0 then \"eap_plh40_1d\" else if rangeHours > 48.0 then \"eap_plh40_1h\" else \"eap_plh40\"\r\nbase = from(bucket: sBucket) |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"iaq\") |> group(columns: [\"id\"])\r\nmi = base |> min() |> map(fn: (r) => ({ r with _field: \"Min\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nma = base |> max() |> map(fn: (r) => ({ r with _field: \"Max\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nav = base |> mean() |> map(fn: (r) => ({ r with _field: \"Avg\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\ncu = base |> last() |> map(fn: (r) => ({ r with _field: \"Now\" })) |> drop(columns: [\"_start\", \"_stop\", \"_time\", \"gw\", \"host\", \"topic\", \"node\"])\r\nunion(tables: [cu, av, ma, mi]) |> group()",
+          "refId": "A"
+        }
+      ],
+      "title": "IAQ Analysis",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 15
+      },
+      "id": 211,
+      "panels": [],
+      "title": "Time Series (Comparative Charts)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": 0
+              },
+              {
+                "color": "super-light-blue",
+                "value": 14
+              },
+              {
+                "color": "green",
+                "value": 20
+              },
+              {
+                "color": "yellow",
+                "value": 26
+              },
+              {
+                "color": "orange",
+                "value": 30
+              },
+              {
+                "color": "red",
+                "value": 35
+              }
+            ]
+          },
+          "unit": "celsius"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 16
+      },
+      "id": 204,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "rangeDuration = uint(v: v.timeRangeStop) - uint(v: v.timeRangeStart)\r\nrangeHours = float(v: rangeDuration) / 1000000000.0 / 3600.0\r\nsBucket = if rangeHours > 168.0 then \"eap_plh40_1d\" else if rangeHours > 48.0 then \"eap_plh40_1h\" else \"eap_plh40\"\r\nfrom(bucket: sBucket) |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"temp\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false) |> drop(columns: [\"gw\", \"host\", \"topic\", \"node\"]) |> map(fn: (r) => ({ r with _field: \"Node \" + r.id }))",
+          "refId": "A"
+        }
+      ],
+      "title": "Temperature Trends",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 20
+              },
+              {
+                "color": "green",
+                "value": 30
+              },
+              {
+                "color": "yellow",
+                "value": 60
+              },
+              {
+                "color": "orange",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 16
+      },
+      "id": 205,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "rangeDuration = uint(v: v.timeRangeStop) - uint(v: v.timeRangeStart)\r\nrangeHours = float(v: rangeDuration) / 1000000000.0 / 3600.0\r\nsBucket = if rangeHours > 168.0 then \"eap_plh40_1d\" else if rangeHours > 48.0 then \"eap_plh40_1h\" else \"eap_plh40\"\r\nfrom(bucket: sBucket) |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"hum\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false) |> drop(columns: [\"gw\", \"host\", \"topic\", \"node\"]) |> map(fn: (r) => ({ r with _field: \"Node \" + r.id }))",
+          "refId": "A"
+        }
+      ],
+      "title": "Humidity Trends",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 80
+              },
+              {
+                "color": "orange",
+                "value": 85
+              },
+              {
+                "color": "red",
+                "value": 87
+              }
+            ]
+          },
+          "unit": "dB"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 16
+      },
+      "id": 206,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "rangeDuration = uint(v: v.timeRangeStop) - uint(v: v.timeRangeStart)\r\nrangeHours = float(v: rangeDuration) / 1000000000.0 / 3600.0\r\nsBucket = if rangeHours > 168.0 then \"eap_plh40_1d\" else if rangeHours > 48.0 then \"eap_plh40_1h\" else \"eap_plh40\"\r\nfrom(bucket: sBucket) |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"db\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false) |> drop(columns: [\"gw\", \"host\", \"topic\", \"node\"]) |> map(fn: (r) => ({ r with _field: \"Node \" + r.id }))",
+          "refId": "A"
+        }
+      ],
+      "title": "Noise Trends",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 10
+              },
+              {
+                "color": "orange",
+                "value": 25
+              },
+              {
+                "color": "red",
+                "value": 50
+              }
+            ]
+          },
+          "unit": "conμgm3"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 24
+      },
+      "id": 201,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "rangeDuration = uint(v: v.timeRangeStop) - uint(v: v.timeRangeStart)\r\nrangeHours = float(v: rangeDuration) / 1000000000.0 / 3600.0\r\nsBucket = if rangeHours > 168.0 then \"eap_plh40_1d\" else if rangeHours > 48.0 then \"eap_plh40_1h\" else \"eap_plh40\"\r\nfrom(bucket: sBucket) |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"pm1\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false) |> drop(columns: [\"gw\", \"host\", \"topic\", \"node\"]) |> map(fn: (r) => ({ r with _field: \"Node \" + r.id }))",
+          "refId": "A"
+        }
+      ],
+      "title": "PM 1.0 Trends",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 15
+              },
+              {
+                "color": "orange",
+                "value": 25
+              },
+              {
+                "color": "red",
+                "value": 35
+              }
+            ]
+          },
+          "unit": "conμgm3"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 24
+      },
+      "id": 202,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "rangeDuration = uint(v: v.timeRangeStop) - uint(v: v.timeRangeStart)\r\nrangeHours = float(v: rangeDuration) / 1000000000.0 / 3600.0\r\nsBucket = if rangeHours > 168.0 then \"eap_plh40_1d\" else if rangeHours > 48.0 then \"eap_plh40_1h\" else \"eap_plh40\"\r\nfrom(bucket: sBucket) |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"pm25\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false) |> drop(columns: [\"gw\", \"host\", \"topic\", \"node\"]) |> map(fn: (r) => ({ r with _field: \"Node \" + r.id }))",
+          "refId": "A"
+        }
+      ],
+      "title": "PM 2.5 Trends",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 45
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "conμgm3"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 24
+      },
+      "id": 203,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "rangeDuration = uint(v: v.timeRangeStop) - uint(v: v.timeRangeStart)\r\nrangeHours = float(v: rangeDuration) / 1000000000.0 / 3600.0\r\nsBucket = if rangeHours > 168.0 then \"eap_plh40_1d\" else if rangeHours > 48.0 then \"eap_plh40_1h\" else \"eap_plh40\"\r\nfrom(bucket: sBucket) |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"pm10\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false) |> drop(columns: [\"gw\", \"host\", \"topic\", \"node\"]) |> map(fn: (r) => ({ r with _field: \"Node \" + r.id }))",
+          "refId": "A"
+        }
+      ],
+      "title": "PM 10.0 Trends",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 600
+              },
+              {
+                "color": "orange",
+                "value": 1000
+              },
+              {
+                "color": "red",
+                "value": 5000
+              }
+            ]
+          },
+          "unit": "ppm"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 32
+      },
+      "id": 207,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "from(bucket: \"eap_plh40\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"co2\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false) |> drop(columns: [\"gw\", \"host\", \"topic\", \"node\"]) |> map(fn: (r) => ({ r with _field: \"Node \" + r.id }))",
+          "refId": "A"
+        }
+      ],
+      "title": "CO2 Trends",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "yellow",
+                "value": 100
+              },
+              {
+                "color": "green",
+                "value": 200
+              }
+            ]
+          },
+          "unit": "kohm"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 32
+      },
+      "id": 208,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "from(bucket: \"eap_plh40\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"tvoc\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false) |> drop(columns: [\"gw\", \"host\", \"topic\", \"node\"]) |> map(fn: (r) => ({ r with _field: \"Node \" + r.id }))",
+          "refId": "A"
+        }
+      ],
+      "title": "VOC Trends",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 51
+              },
+              {
+                "color": "orange",
+                "value": 101
+              },
+              {
+                "color": "red",
+                "value": 151
+              },
+              {
+                "color": "dark-red",
+                "value": 201
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 32
+      },
+      "id": 209,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "from(bucket: \"eap_plh40\") |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"iaq\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false) |> drop(columns: [\"gw\", \"host\", \"topic\", \"node\"]) |> map(fn: (r) => ({ r with _field: \"Node \" + r.id }))",
+          "refId": "A"
+        }
+      ],
+      "title": "IAQ Trends",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "influxdb",
+        "uid": "bf7b5hd75n9c0c"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line+area"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "orange",
+                "value": 3.22
+              },
+              {
+                "color": "green",
+                "value": 3.55
+              }
+            ]
+          },
+          "unit": "volt"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 40
+      },
+      "id": 215,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.3.1",
+      "targets": [
+        {
+          "query": "rangeDuration = uint(v: v.timeRangeStop) - uint(v: v.timeRangeStart)\r\nrangeHours = float(v: rangeDuration) / 1000000000.0 / 3600.0\r\nsBucket = if rangeHours > 168.0 then \"eap_plh40_1d\" else if rangeHours > 48.0 then \"eap_plh40_1h\" else \"eap_plh40\"\r\nfrom(bucket: sBucket) |> range(start: v.timeRangeStart, stop: v.timeRangeStop) |> filter(fn: (r) => r._measurement == \"air_quality\") |> filter(fn: (r) => r.id == \"${NodeID}\") |> filter(fn: (r) => r._field == \"v\") |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false) |> drop(columns: [\"gw\", \"host\", \"topic\", \"node\"]) |> map(fn: (r) => ({ r with _field: \"Node \" + r.id }))",
+          "refId": "A"
+        }
+      ],
+      "title": "Battery Trends",
+      "type": "timeseries"
+    }
+  ],
+  "preload": true,
+  "refresh": "5m",
+  "schemaVersion": 42,
+  "tags": [
+    "aetherlogic",
+    "iot",
+    "air-quality",
+    "industrial"
+  ],
+  "templating": {
+    "list": [
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": "Διάδρομος",
+          "value": "Διάδρομος"
+        },
+        "definition": "from(bucket: \"eap_plh40\")\r\n  |> range(start: -1d)\r\n  |> filter(fn: (r) => r._measurement == \"air_quality\")\r\n  |> keep(columns: [\"id\"])\r\n  |> distinct(column: \"id\")",
+        "label": "Select Node",
+        "name": "NodeID",
+        "options": [],
+        "query": {
+          "query": "from(bucket: \"eap_plh40\")\r\n  |> range(start: -1d)\r\n  |> filter(fn: (r) => r._measurement == \"air_quality\")\r\n  |> keep(columns: [\"id\"])\r\n  |> distinct(column: \"id\")"
+        },
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
+  "timezone": "browser",
+  "title": "AetherLogic - Nodes Dashboard",
+  "uid": "aetherlogic-main-fixed2",
+  "version": 29,
+  "weekStart": "monday"
+}

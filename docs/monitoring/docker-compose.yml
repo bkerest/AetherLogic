@@ -1,0 +1,64 @@
+version: '3'
+services:
+  influxdb:
+    image: influxdb:latest
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    volumes:
+      - /share/Container/influxdb2:/var/lib/influxdb2
+      - /share/Container/influxdb2-config:/etc/influxdb2
+    restart: unless-stopped
+    
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    user: "0"  # <--- ΠΡΟΣΘΕΣΕ ΑΥΤΗ ΤΗ ΓΡΑΜΜΗ (Λύνει το πρόβλημα δικαιωμάτων)
+    volumes:
+      # Η κανονική αποθήκευση δεδομένων
+      - /share/Container/grafana:/var/lib/grafana
+      
+      # --- CUSTOM LOGOS ---
+      - /share/Container/grafana/img/grafana_icon.svg:/usr/share/grafana/public/build/static/img/grafana_icon.1e0deb6b.svg
+      - /share/Container/grafana/img/grafana_icon.svg:/usr/share/grafana/public/img/grafana_icon.svg
+      - /share/Container/grafana/img/fav32.png:/usr/share/grafana/public/img/fav32.png
+      - /share/Container/grafana/grafana.ini:/etc/grafana/grafana.ini
+    environment:
+      # =====================================================
+      # Plugin Installation
+      # =====================================================
+      - GF_INSTALL_PLUGINS=aceiot-svg-panel    
+      # =====================================================
+      # SMTP Configuration — Hostinger Mail
+      # =====================================================
+      - GF_SMTP_ENABLED=true
+      - GF_SMTP_HOST=smtp.hostinger.com:465
+      - GF_SMTP_USER=alert@aetherlogic.eu
+      - GF_SMTP_PASSWORD=*********
+      - GF_SMTP_SKIP_VERIFY=false
+      - GF_SMTP_FROM_ADDRESS=alert@aetherlogic.eu
+      - GF_SMTP_FROM_NAME=AetherLogic Alerts
+      - GF_SMTP_STARTTLS_POLICY=NoStartTLS
+      # =====================================================
+      # Grafana Alerting — Unified Alerting (default σε νέες εκδόσεις)
+      # =====================================================
+      - GF_UNIFIED_ALERTING_ENABLED=true
+      # =====================================================
+      # Server — Για σωστά links στα email notifications
+      # =====================================================
+      - GF_SERVER_ROOT_URL=https://aetherlogic.eu/
+      - GF_SERVER_DOMAIN=aetherlogic.eu
+    restart: unless-stopped          
+    
+  telegraf:
+    image: telegraf:latest
+    container_name: telegraf
+    restart: always
+    network_mode: host
+    volumes:
+      # Mount the config file we created earlier
+      - /share/Container/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    depends_on:
+      - influxdb    
