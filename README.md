@@ -30,18 +30,18 @@ Firmware για το σύστημα παρακολούθησης ποιότητ�
 ## Δομή Repository
 
 ```
-aetherlogic/firmware
+aetherlogic/firmware/
 ├── sensor-node/          # ESP32-C3 firmware
 │   └── sensor-node.ino
 ├── gateway/              # ESP32-S3 firmware
 │   └── gateway.ino
 └── docs/
     └── pinouts.md
-    docs/gerber
+    └──docs/gerber/
         └── Gerber_GateWay.zip        # Σχέδια πλακέτας Πύλης
         └── Gerber_Node.zip           # Σχέδια πλακέτας αισθητήρων
         └── Gerber_Node_Power.zip     # Σχέδια πλακέτας τροφοδοσίας αισθητήρων
-    docs/grafana
+    └──docs/grafana/
         └── AetherLogic - Main Dashboard-1773261228574.json     # Κυρίως Πίνακας ελέγχου με κάτοψη εργοστασίου
         └── AetherLogic - Nodes Dashboard-1773261255099.json    # Πίνακας ελέγχου ανά κόμβο
         └── alert-rules-1773261341571.json                      # Κανόνες ειδοποιήσεων
@@ -49,17 +49,17 @@ aetherlogic/firmware
         └── elvial_floorplan.svg                                # Κάτοψη εργοστασίου σε μορφή svg
         └── JS_Initialization.js                                # Αρχείο αρχικοποίησης Main Dashboard
         └── JS_Render_Code.js                                   # Αρχείο λειτουργίας js/react Main Dashboard
-    docs/influx
+    └──docs/influx/
         └── influxdb-schema.md    # Λειτουργικά ερωτήματα Influx και downsampling
-    docs/monitoring
+    └──docs/monitoring/
         └── docker-compose.yml    # Αρχείο ρυθμίσων docker station
-    docs/stl
-        └── GETAWAY_BOTTOM.stl    # Εκτυπώσιμο (3D) περιβλήματος πύλης
-        └── GETAWAY_CAP.stl       # Εκτυπώσιμο (3D) καπακιού πύλης
+    └──docs/stl/
+        └── GATEWAY_BOTTOM.stl    # Εκτυπώσιμο (3D) περιβλήματος πύλης
+        └── GATEWAY_CAP.stl       # Εκτυπώσιμο (3D) καπακιού πύλης
         └── NODE_BOTTOM.stl       # Εκτυπώσιμο (3D) περιβλήματος κόμβου
         └── NODE_CAP.stl          # Εκτυπώσιμο (3D) καπακιού κόμβου
         └── PCB_HOLDER.stl        # Εκτυπώσιμο (3D) βάσης στήριξης PCB
-    docs/telegraf
+    └──docs/telegraf/
         └── telegraf.conf         # Αρχείο ρυθμίσεων telegraf
 ```
 
