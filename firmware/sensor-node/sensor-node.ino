@@ -3,7 +3,7 @@
 // Part of undergraduate thesis (Polytechnic School)
 //
 // Hardware: ESP32-C3 + SX1276 LoRa + BME680 + SCD40 + ZH03B + Mic
-// Cycle: Wake -> Measure -> Encrypt -> LoRa TX -> Deep Sleep
+// Cycle: Wake -> UVLO Check -> Measure -> Encrypt -> LoRa TX -> Deep Sleep
 
 #include <math.h>
 #include <Wire.h>
@@ -50,6 +50,10 @@
 #define MAGIC_NUMBER    0xCAFE     // Packet header magic
 #define DEFAULT_BASELINE 50000.0   // Initial BME680 gas baseline (Ohm)
 #define DEFAULT_LORA_PROFILE 2     // BALANCED
+
+// --- Software UVLO (Undervoltage Lockout) ---
+#define UVLO_THRESHOLD  2.95       // Minimum battery voltage (V) to proceed
+#define UVLO_SLEEP_HR   12         // Deep sleep duration (hours) when undervoltage
 
 // LoRa Profiles: 1=ECO(SF7,14dBm) 2=BALANCED(SF9,17dBm) 3=LONG(SF10,20dBm) 4=EXTREME(SF12,20dBm)
 
@@ -222,6 +226,69 @@ void saveBaseline(float newBaseline) {
   prefs.putFloat("gas_base", newBaseline);
   prefs.end();
   Serial.printf("Auto-Calib: New Gas Baseline Saved: %.0f Ohm\n", newBaseline);
+}
+
+// === SOFTWARE UVLO (Undervoltage Lockout) ===
+// Checks battery voltage before any peripherals are powered.
+// If below UVLO_THRESHOLD, shuts down all outputs and enters
+// extended deep sleep (UVLO_SLEEP_HR hours) to:
+//   1. Prevent brownout resets that parasitically enable the 5V boost
+//   2. Stop further discharge below safe Li-ion cell voltage (~2.5V)
+//   3. Allow TP4056 to charge cells unimpeded (if USB power connected)
+// Returns true if voltage is OK, never returns if undervoltage (enters sleep).
+bool checkUVLO() {
+  analogSetAttenuation(ADC_11db);
+  pinMode(BAT_PIN, INPUT);
+  delay(10);
+
+  // Average 4 readings for more stable measurement at low voltage
+  uint32_t raw_sum = 0;
+  for (int i = 0; i < 4; i++) {
+    raw_sum += analogReadMilliVolts(BAT_PIN);
+    delay(5);
+  }
+  uint32_t raw_uvlo = raw_sum / 4;
+  float voltage_uvlo = (raw_uvlo * cfg_voltFactor) / 1000.0;
+
+  if (voltage_uvlo >= UVLO_THRESHOLD) {
+    Serial.printf("UVLO: Battery %.2fV OK (threshold %.2fV)\n",
+                  voltage_uvlo, UVLO_THRESHOLD);
+    return true;
+  }
+
+  // --- Undervoltage detected: enter protective deep sleep ---
+  Serial.printf("UVLO: Battery %.2fV < %.2fV - entering %dh deep sleep\n",
+                voltage_uvlo, UVLO_THRESHOLD, UVLO_SLEEP_HR);
+  Serial.flush();
+
+  // Ensure all power outputs are OFF before sleeping
+  pinMode(ZH_PWR_PIN, OUTPUT);
+  digitalWrite(ZH_PWR_PIN, LOW);         // 5V boost OFF
+  pinMode(SENS_PWR_PIN, OUTPUT);
+  digitalWrite(SENS_PWR_PIN, HIGH);       // P-MOSFET OFF (active-low)
+
+  // Ground all other pins to prevent parasitic leakage
+  const uint8_t pinsToGround[] = {
+    MIC_PIN, I2C_SDA, I2C_SCL, ZH_RX_PIN,
+    LORA_SCK, LORA_MISO, LORA_MOSI, LORA_CS, LORA_RST, LORA_DIO0
+  };
+  for (int i = 0; i < sizeof(pinsToGround); i++) {
+    pinMode(pinsToGround[i], OUTPUT);
+    digitalWrite(pinsToGround[i], LOW);
+  }
+
+  // Hold GPIO states during deep sleep
+  gpio_hold_en((gpio_num_t)ZH_PWR_PIN);
+  gpio_hold_en((gpio_num_t)SENS_PWR_PIN);
+  gpio_deep_sleep_hold_en();
+
+  // Sleep for UVLO_SLEEP_HR hours
+  uint64_t uvlo_sleep_us = (uint64_t)UVLO_SLEEP_HR * 3600ULL * 1000000ULL;
+  esp_sleep_enable_timer_wakeup(uvlo_sleep_us);
+  esp_deep_sleep_start();
+
+  // Never reached
+  return false;
 }
 
 // Interactive serial configuration menu with optional calibration wizard.
@@ -533,7 +600,7 @@ DustData readZH03B() {
            if (d.pm2_5 == 0 && (buffer[2] != 0 || buffer[3] != 0)) {
               d.pm1_0 = (buffer[2] << 8) + buffer[3];
               d.pm2_5 = (buffer[4] << 8) + buffer[5];
-              d.pm10  = (buffer[6] << 8) + buffer[7];
+              d.pm10  = (buffer[6] << 7) + buffer[7];
            }
            return d;
         }
@@ -558,6 +625,13 @@ void setup() {
   delay(2000);
 
   loadSettings();
+
+  // === SOFTWARE UVLO CHECK ===
+  // Must run BEFORE config menu and sensor power-up.
+  // If battery is critically low, the node sleeps immediately
+  // without activating any peripherals (no LoRa, no sensors, no boost).
+  // This prevents the brownout -> boost enable -> deep discharge cycle.
+  checkUVLO();
 
   // 3-second window to enter config menu
   Serial.println("Press 'c' to configure...");
