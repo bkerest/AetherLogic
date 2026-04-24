@@ -613,6 +613,15 @@ DustData readZH03B() {
 // setup() is the entire operational cycle - loop() is never reached
 // because deep sleep resets the CPU back to setup() on each wake.
 void setup() {
+  // === CRITICAL: Set power outputs to safe state IMMEDIATELY on boot ===
+  // Must happen before gpio_hold_dis() and before anything else.
+  // Prevents GPIO5 (ZH_PWR) from floating HIGH on reset, which causes
+  // brownout due to 5V boost activation during startup.
+  pinMode(ZH_PWR_PIN, OUTPUT);
+  digitalWrite(ZH_PWR_PIN, LOW);    // 5V boost OFF
+  pinMode(SENS_PWR_PIN, OUTPUT);
+  digitalWrite(SENS_PWR_PIN, HIGH); // P-MOSFET OFF (active-low)
+
   // Release GPIO hold from previous deep sleep
   gpio_hold_dis((gpio_num_t)ZH_PWR_PIN);
   gpio_hold_dis((gpio_num_t)SENS_PWR_PIN);
@@ -816,7 +825,7 @@ void setup() {
     Serial.printf("BME DEBUG: Pressure RAW = %u Pa, Converted = %.2f hPa, Final = %.2f hPa\n",
                   bme.pressure, bme.pressure / 100.0, pkt.pressure);
   } else {
-    pkt.temp = 0;
+    pkt.temp = 0;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
     pkt.hum = 0;
     pkt.pressure = 0;
   }
