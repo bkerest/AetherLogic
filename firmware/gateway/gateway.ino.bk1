@@ -9,7 +9,7 @@
 // Framework   : Arduino-ESP32 Core v3.0.5
 //               NOTE: Core v3.0.5 is required — earlier versions exhibit SPI
 //               stack allocation failures when two SPI buses operate concurrently.
-// Version     : 2.6.5
+// Version     : 2.6.0
 //
 // ----------------------------------------------------------------------------
 // SYSTEM ARCHITECTURE
@@ -71,22 +71,9 @@
 // 10. mDNS responder for local network discovery (http://s3gateway.local)
 // 11. Automatic LoRa module recovery after 15-minute inactivity timeout
 // 12. Dynamic heap monitoring with emergency buffer cleanup
-//
-// Changelog v2.6.1:
-//   FIX 1 — esp_task_wdt_reset() added before and after mqtt.connect() in
-//            connectMQTT(). The blocking TLS handshake (up to 15 s) was causing
-//            the 10-second hardware watchdog to fire before the main loop could
-//            reach the button, display, or web-server handlers — making the
-//            device completely unresponsive and stuck in a reboot loop on
-//            unknown networks with no way to intervene physically.
-//   FIX 2 — Fallback AP mode after WIFI_MAX_RETRIES (5) failed reconnection
-//            attempts in the main loop. The AP opens for reconfiguration while
-//            LoRa reception and offline buffering remain fully active. A separate
-//            flag (apPortalOpen) is used so the LoRa/display path is not blocked
-//            by an early return. wifiRetryCount resets to 0 on reconnection.
 // ============================================================================
 
-#define FIRMWARE_VERSION "2.6.5"
+#define FIRMWARE_VERSION "2.6.0"
 
 // ============================================================================
 // LIBRARY DEPENDENCIES
@@ -245,12 +232,6 @@
 // stale connections). Active in ALL operating modes (AP, normal, reconnecting).
 #define REBOOT_INTERVAL          43200000UL // 12 hours (43,200,000 ms)
 
-// WiFi Retry Fallback Threshold (FIX 2)
-// After this many failed 30-second reconnection cycles (~2.5 min total), a
-// fallback AP is opened alongside LoRa. apPortalOpen is used instead of apMode
-// so the main loop does NOT exit early — LoRa and display keep running.
-#define WIFI_MAX_RETRIES 5
-
 // ============================================================================
 // LORA PACKET DATA STRUCTURE (48 Bytes, AES-128 Block-Aligned)
 // ============================================================================
@@ -341,9 +322,6 @@ uint8_t mqttRetryCount = 0;
 unsigned long lastWifiCheck = 0;
 bool otaInProgress = false;
 bool apMode = false;                 // AP mode: captive portal, no LoRa/MQTT
-bool apPortalOpen = false;           // FIX 2: Fallback rescue AP — does NOT exit the main
-                                     // loop, so LoRa/display/webserver keep running.
-uint8_t wifiRetryCount = 0;          // FIX 2: Counts consecutive failed WiFi reconnects.
 
 // Health monitoring
 bool ntpSynced = false;
@@ -362,7 +340,6 @@ bool btnLongPressHandled = false;
 void loadSettings();
 void applyLoRaProfile(uint8_t profile);
 void resetWiFiSettings();
-void forceAPMode();
 void setupWiFi();
 void setupWebServer();
 bool checkAuth();
@@ -399,58 +376,11 @@ void setup() {
   Serial.println("Gateway ID: " + gwID);
 
   // Backlight ON first for immediate visual feedback
-
-
-
-
-    pinMode(TFT_BL, OUTPUT);
+  pinMode(TFT_BL, OUTPUT);
   digitalWrite(TFT_BL, HIGH);
   blState = true;
 
   pinMode(BTN_PIN, INPUT_PULLUP);
-
-  // ============ BOOT-TIME FACTORY RESET ============
-  // Hold button during power-on/boot to force factory reset.
-  // This runs BEFORE loadSettings() caches the NVS values, so it's safe.
-  delay(100);  // Allow button pin to settle
-  if (digitalRead(BTN_PIN) == LOW) {
-    Serial.println("*** BOOT-TIME FACTORY RESET DETECTED ***");
-    tftSPI.begin(TFT_SCLK, -1, TFT_MOSI, TFT_CS);
-    tft.init(240, 320, SPI_MODE3);
-    tft.setRotation(2);
-    tft.invertDisplay(true);
-    tft.fillScreen(ST77XX_RED);
-    tft.setTextColor(ST77XX_WHITE);
-    tft.setTextSize(2);
-    tft.setCursor(20, 100);
-    tft.println("FACTORY RESET");
-    tft.setCursor(20, 130);
-    tft.println("Release button...");
-
-    // Wait for button release before clearing NVS
-    unsigned long btnHoldStart = millis();
-    while (digitalRead(BTN_PIN) == LOW && millis() - btnHoldStart < 10000) {
-      delay(100);
-    }
-
-    prefs.begin("gateway_cfg", false);
-    prefs.putString("ssid", "");
-    prefs.putString("pass", "");
-    prefs.putString("web_pw", DEFAULT_WEB_PASSWORD);
-    prefs.end();
-
-    tft.fillScreen(ST77XX_RED);
-    tft.setCursor(20, 100);
-    tft.println("WiFi RESET!");
-    tft.setCursor(20, 130);
-    tft.println("Password RESET!");
-    tft.setCursor(20, 160);
-    tft.println("Rebooting...");
-
-    delay(2000);
-    ESP.restart();
-  }
-  // ============ END BOOT-TIME FACTORY RESET ============
 
   loadSettings();
 
@@ -553,11 +483,6 @@ void setup() {
 //   1. OTA Mode:    Only HTTP server runs (watchdog fed by upload handler)
 //   2. AP Mode:     Captive portal only (DNS + HTTP + button). No LoRa/MQTT.
 //   3. Normal Mode: Full operation — LoRa, MQTT, display, health monitoring
-//
-// Button behaviour (checked at TOP of every iteration, before mode dispatch):
-//   - Short press (<3s):        Trigger backlight (any mode)
-//   - Long press (>3s) + WiFi lost:  Force AP mode immediately (keeping NVS intact)
-//   - Long press (>3s) + WiFi OK:    Factory reset (clear NVS, reboot into AP)
 void loop() {
   unsigned long loopStart = millis();
 
@@ -567,64 +492,6 @@ void loop() {
   }
 
   unsigned long now = millis();
-
-  // ============ UNIVERSAL BUTTON HANDLER ============
-  // Runs EVERY iteration, BEFORE any mode-specific dispatch.
-  // This ensures the button works in ALL modes (AP, normal, reconnecting).
-  int btnState = digitalRead(BTN_PIN);
-  if (btnState == LOW) {
-    // Button just pressed — start timing
-    if (btnPressStart == 0) {
-      btnPressStart = now;
-      btnLongPressHandled = false;
-
-      // Visual feedback (only if display is accessible)
-      tft.fillRect(0, 0, 240, 20, ST77XX_YELLOW);
-      tft.setTextColor(ST77XX_BLACK);
-      tft.setTextSize(1);
-      tft.setCursor(5, 5);
-      tft.print("Button pressed...");
-    }
-
-    unsigned long pressDuration = now - btnPressStart;
-
-    // Draw progress bar while button is held (first 3 seconds)
-    if (pressDuration < LONG_PRESS_MS) {
-      int progress = map(pressDuration, 0, LONG_PRESS_MS, 0, 230);
-      tft.fillRect(5, 15, progress, 3, ST77XX_RED);
-    }
-
-    // Long press threshold reached (3 seconds)
-    if (!btnLongPressHandled && (pressDuration > LONG_PRESS_MS)) {
-      if (WiFi.status() == WL_CONNECTED) {
-        // Network is connected — long press = FACTORY RESET
-        Serial.println("Button: Long press with WiFi connected — Factory Reset!");
-        resetWiFiSettings();
-      } else {
-        // Network is lost — long press = FORCE AP MODE (keep NVS intact)
-        Serial.println("Button: Long press without WiFi — Forcing AP mode!");
-        forceAPMode();
-      }
-      btnLongPressHandled = true;
-    }
-  } else {
-    // Button released
-    if (btnPressStart > 0) {
-      if (!btnLongPressHandled) {
-        // Short press — activate backlight
-        triggerBacklight();
-        tft.fillRect(0, 0, 240, 20, ST77XX_GREEN);
-        tft.setTextColor(ST77XX_WHITE);
-        tft.setTextSize(1);
-        tft.setCursor(5, 5);
-        tft.print("Backlight ON!");
-        delay(500);
-        drawStatusBar();
-      }
-      btnPressStart = 0;
-    }
-  }
-  // ============ END UNIVERSAL BUTTON HANDLER ============
 
   // 12-hour scheduled reboot — works in ALL modes (AP, normal, OTA, reconnecting)
   if (now - bootTime > REBOOT_INTERVAL) {
@@ -644,7 +511,21 @@ void loop() {
   if (apMode) {
     dnsServer.processNextRequest();
     server.handleClient();
-    // Button handled above by universal handler — no duplicate code needed here
+
+    int btnState = digitalRead(BTN_PIN);
+    if (btnState == LOW) {
+      if (btnPressStart == 0) {
+        btnPressStart = millis();
+        btnLongPressHandled = false;
+      }
+      if (!btnLongPressHandled && (millis() - btnPressStart > LONG_PRESS_MS)) {
+        resetWiFiSettings();
+        btnLongPressHandled = true;
+      }
+    } else {
+      btnPressStart = 0;
+    }
+
     delay(10);
     return;
   }
@@ -654,43 +535,19 @@ void loop() {
   // =========================================================================
 
   // WiFi auto-reconnect every 30 s (full disconnect cycle clears stale state)
-  // FIX 2: Track consecutive failures. After WIFI_MAX_RETRIES open a rescue AP
-  // alongside LoRa using apPortalOpen (does NOT trigger the early return of apMode).
   if (cfg_ssid != "" && WiFi.status() != WL_CONNECTED) {
       if (now - lastWifiCheck > 30000) {
           lastWifiCheck = now;
-          wifiRetryCount++;
-          Serial.printf("WiFi Lost. Reconnect attempt %d/%d...\n", wifiRetryCount, WIFI_MAX_RETRIES);
+          Serial.println("WiFi Lost. Attempting Reconnect...");
           WiFi.disconnect();
           WiFi.begin(cfg_ssid.c_str(), cfg_pass.c_str());
-
-          if (wifiRetryCount >= WIFI_MAX_RETRIES && !apPortalOpen) {
-              Serial.println("WiFi unreachable. Opening rescue AP (LoRa stays active).");
-              WiFi.softAP("S3-Gateway-Setup", "admin123");
-              dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
-              apPortalOpen = true;
-              triggerBacklight();
-              Serial.printf("Rescue AP: connect to 'S3-Gateway-Setup' at %s\n",
-                            WiFi.softAPIP().toString().c_str());
-          }
       }
-  }
-
-  // Serve DNS for rescue AP without blocking the rest of the loop
-  if (apPortalOpen) {
-      dnsServer.processNextRequest();
   }
 
   // Detect fresh WiFi connection — initialize NTP + mDNS on first connect/reconnect
   static bool wasConnected = false;
   if (WiFi.status() == WL_CONNECTED && !wasConnected) {
     Serial.println("WiFi connected! Initializing network services...");
-    wifiRetryCount = 0;
-    if (apPortalOpen) {
-      Serial.println("WiFi reconnected — closing rescue AP.");
-      WiFi.softAPdisconnect(true);
-      apPortalOpen = false;
-    }
     configTime(GMT_OFFSET_SEC, DST_OFFSET_SEC, NTP_SERVER);
     if (!mdnsStarted) {
       if (MDNS.begin(HOSTNAME)) {
@@ -790,8 +647,46 @@ void loop() {
     }
   }
 
-    // Button: now handled by UNIVERSAL BUTTON HANDLER at top of loop()
-  // This duplicate block is intentionally removed to prevent conflicts.
+  // Button: short press = backlight, long press (>3 s) = factory reset
+  int btnState = digitalRead(BTN_PIN);
+  if (btnState == LOW) {
+    if (btnPressStart == 0) {
+      btnPressStart = millis();
+      btnLongPressHandled = false;
+
+      tft.fillRect(0, 0, 240, 20, ST77XX_YELLOW);
+      tft.setTextColor(ST77XX_BLACK);
+      tft.setTextSize(1);
+      tft.setCursor(5, 5);
+      tft.print("Button pressed...");
+    }
+
+    unsigned long pressDuration = millis() - btnPressStart;
+    if (pressDuration < LONG_PRESS_MS) {
+      int progress = map(pressDuration, 0, LONG_PRESS_MS, 0, 230);
+      tft.fillRect(5, 15, progress, 3, ST77XX_RED);
+    }
+
+    if (!btnLongPressHandled && (millis() - btnPressStart > LONG_PRESS_MS)) {
+      resetWiFiSettings();
+      btnLongPressHandled = true;
+    }
+  } else {
+    if (btnPressStart > 0) {
+      if (!btnLongPressHandled) {
+        triggerBacklight();
+
+        tft.fillRect(0, 0, 240, 20, ST77XX_GREEN);
+        tft.setTextColor(ST77XX_WHITE);
+        tft.setTextSize(1);
+        tft.setCursor(5, 5);
+        tft.print("Backlight ON!");
+        delay(500);
+        drawStatusBar();
+      }
+      btnPressStart = 0;
+    }
+  }
 
   // Backlight auto-off after BL_TIMEOUT
   if (blState && (millis() - blTimer > BL_TIMEOUT)) {
@@ -1118,46 +1013,6 @@ void triggerBacklight() {
   blState = true;
   blTimer = millis();
 }
-
-// ============ FORCE AP MODE (without clearing NVS) ============
-// Called when the user long-presses the button while WiFi is lost.
-// Opens an AP so the user can connect and reconfigure WiFi credentials
-// via the web portal. Does NOT clear stored SSID/password from NVS,
-// so if the original network comes back, a reboot will reconnect.
-void forceAPMode() {
-  triggerBacklight();
-
-  // Disconnect any existing WiFi station connection attempt
-  WiFi.disconnect(true);  // true = clear WiFi config from RAM (not NVS)
-  WiFi.mode(WIFI_AP);
-
-  // Start AP mode
-  WiFi.softAP("S3-Gateway-Setup", "admin123");
-  dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
-  apPortalOpen = true;  // Keep LoRa running underneath
-  apMode = true;       // Force the AP mode early-return path in loop()
-
-  Serial.printf("FORCE AP: Connect to 'S3-Gateway-Setup' at %s\n",
-                WiFi.softAPIP().toString().c_str());
-
-  // Display instructions on TFT
-  tft.fillScreen(ST77XX_GREEN);
-  tft.setTextColor(ST77XX_BLACK);
-  tft.setTextSize(2);
-  tft.setCursor(20, 100);
-  tft.println("AP MODE ACTIVE");
-  tft.setCursor(20, 130);
-  tft.println("Connect & setup");
-  tft.setTextSize(1);
-  tft.setCursor(20, 160);
-  tft.println("SSID: S3-Gateway-Setup");
-  tft.setCursor(20, 175);
-  tft.println("Pass: admin123");
-  tft.setCursor(20, 195);
-  tft.print("IP: ");
-  tft.println(WiFi.softAPIP().toString());
-}
-// ============ END FORCE AP MODE ============
 
 // ============================================================================
 // USER INTERFACE — TFT Display Rendering (240x320, ST7789)
@@ -1910,13 +1765,6 @@ bool connectMQTT() {
   mqtt.setKeepAlive(cfg_mqtt_keepalive);
   Serial.printf("MQTT Keepalive set to %d seconds\n", cfg_mqtt_keepalive);
 
-  // FIX 1: Feed WDT before mqtt.connect(). The TLS handshake with the EMQX
-  // broker blocks for up to 15 s. Without this, the 10 s hardware watchdog
-  // fires mid-handshake → reboot loop, button frozen, display stuck,
-  // web server unreachable — no way to intervene physically.
-  esp_task_wdt_reset();
-  Serial.println("MQTT connecting (TLS handshake may take up to 15s)...");
-
   if (cfg_mqtt_user != "") {
     connected = mqtt.connect(
       clientId.c_str(),
@@ -1936,10 +1784,6 @@ bool connectMQTT() {
       cfg_mqtt_lwt_msg_offline.c_str()
     );
   }
-
-  // FIX 1: Feed again after connect() returns — the handshake may have
-  // consumed most of the 10 s WDT window even when it succeeds quickly.
-  esp_task_wdt_reset();
 
   if (connected) {
     Serial.println("MQTT Connected with LWT");

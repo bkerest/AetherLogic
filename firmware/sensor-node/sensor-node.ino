@@ -18,6 +18,14 @@
 #include <driver/gpio.h>
 #include <Preferences.h>
 
+// ESP32-C3 RTC_CNTL_BROWN_OUT_REG address and enable bit
+#define RTC_CNTL_BROWN_OUT_REG  0x600080D8
+#define RTC_CNTL_BROWN_OUT_ENA  (1 << 30)
+
+// ESP32-C3 RTC_CNTL_BROWN_OUT_REG at 0x600080D8, bit 30 is enable
+#define RTC_CNTL_BROWN_OUT_REG  0x600080D8
+#define RTC_CNTL_BROWN_OUT_ENA  (1 << 30)
+
 // --- Pin Assignments (ESP32-C3) ---
 #define BAT_PIN       0    // ADC1_CH0 - Battery voltage divider
 #define MIC_PIN       1    // ADC1_CH1 - Microphone amplifier output
@@ -627,6 +635,11 @@ void setup() {
   gpio_hold_dis((gpio_num_t)SENS_PWR_PIN);
   gpio_deep_sleep_hold_dis();
 
+
+
+
+
+
   WiFi.mode(WIFI_OFF);
   btStop();
 
@@ -661,25 +674,45 @@ void setup() {
     Serial.println("  Recommended: 25-30s for optimal readings");
   }
 
-  // Measure battery BEFORE powering sensors (unloaded voltage = better SoC estimate)
+  // Power on sensors FIRST to let inrush settle before ADC reads.
+  // The 3.3V sensor rail has large bypass caps (~470\u00B5F total) that
+  // draw heavy inrush when the P-MOSFET turns on. If we measure battery
+  // before this, the inrush later drops the ESP32-C3's VCC below the
+  // brownout threshold, triggering BOD even with good battery voltage.
+
+  // === HOLD LORA IN RESET DURING POWER-ON ===
+  // The SX1276 draws a significant internal current spike when its VCC
+  // crosses the POR threshold, on top of the passive cap inrush. By holding
+  // its RST pin LOW before powering the rail, we keep the radio in reset
+  // so its internal LDO and PLL don't engage. This reduces the total inrush
+  // by ~30-50mA. We release RST just before LoRa.begin() below.
+  pinMode(LORA_RST, OUTPUT);
+  digitalWrite(LORA_RST, LOW);         // SX1276 held in reset
+
+  pinMode(ZH_PWR_PIN, OUTPUT);
+  digitalWrite(ZH_PWR_PIN, HIGH);      // 5V boost ON for ZH03B
+  pinMode(SENS_PWR_PIN, OUTPUT);
+  digitalWrite(SENS_PWR_PIN, LOW);     // P-MOSFET ON for 3.3V sensor rail
+
+  // CRITICAL: Wait for inrush to settle before any ADC reads or peripheral init.
+  // Without this, bypass caps (200\u00B5F LoRa + 100\u00B5F BME680 + 10\u00B5F SCD40)
+  // all charge simultaneously and sag the 3.3V rail momentarily.
+  delay(1000);
+
+  // Measure battery AFTER sensor rail is settled (loaded voltage = realistic SoC)
   analogSetAttenuation(ADC_11db);
   pinMode(BAT_PIN, INPUT);
   delay(10);
   uint32_t raw_bat = analogReadMilliVolts(BAT_PIN);
   float voltage = (raw_bat * cfg_voltFactor) / 1000.0;
-  Serial.printf("Bat: %.2f V\n", voltage);
+  Serial.printf("Bat: %.2f V (loaded)\n", voltage);
 
-  // Power on sensors: 5V boost for ZH03B, P-MOSFET for 3.3V rail
-  pinMode(ZH_PWR_PIN, OUTPUT);
-  digitalWrite(ZH_PWR_PIN, HIGH);
-  pinMode(SENS_PWR_PIN, OUTPUT);
-  digitalWrite(SENS_PWR_PIN, LOW);
-  delay(500);
-
-  // Init peripherals
+  // Init peripherals (LoRa RST still held LOW — released by LoRa.setPins below)
   pinMode(MIC_PIN, INPUT);
   Wire.begin(I2C_SDA, I2C_SCL);
   SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_CS);
+
+  // Release LoRa reset and init — RST pin is now controlled by the LoRa library
   LoRa.setPins(LORA_CS, LORA_RST, LORA_DIO0);
   if (!LoRa.begin(868E6)) {
     Serial.println("LoRa Fail");
